@@ -18,9 +18,9 @@ PB.components = (() => {
     }
   }
 
-  const row = (name, installed, latest, update, extra, btn) => `<div class="pb-li"><div class="pb-lmain"><div class="pb-lname">${esc(name)}</div>
-      <div class="pb-lsub">${esc(installed || "not installed")}${update && latest ? ` → ${esc(latest)}` : ""}</div></div>
-      <div class="pb-lbtn">${extra || ""}${update ? btn : `<span class="pb-chip done">Up to date</span>`}</div></div>`;
+  const row = (name, installed, latest, update, extra, btn, needs) => `<div class="pb-li"><div class="pb-lmain"><div class="pb-lname">${esc(name)}</div>
+      <div class="pb-lsub">${esc(installed || "not installed")}${(update || needs?.length) && latest ? ` → ${esc(latest)}` : ""}${needs?.length ? ` · needs ${esc(needs.join(", "))} first` : ""}</div></div>
+      <div class="pb-lbtn">${extra || ""}${update ? btn : needs?.length ? `<span class="pb-chip failed">Waiting</span>` : `<span class="pb-chip done">Up to date</span>`}</div></div>`;
   const select = (attrs, value, options) => `<select ${attrs}>${options.map(o => `<option${o === value ? " selected" : ""}>${o}</option>`).join("")}</select>`;
 
   async function load(box) {
@@ -32,11 +32,11 @@ PB.components = (() => {
         <button type="button" data-a="check">Check now</button>${any ? `<button type="button" class="pb-pri" data-a="all">Update all</button>` : ""}</div>
       <p class="pb-compmsg pb-muted"></p>
       <div class="pb-sub-h">Printer Buddy</div>
-      ${row("Printer Buddy", c.core.installed, c.core.latest, c.core.update, "", `<button type="button" data-up="core">Update</button>`)}
+      ${row("Printer Buddy", c.core.installed, c.core.latest, c.core.update, "", `<button type="button" data-up="core">Update</button>`, c.core.needs)}
       ${c.parts.map(p => row(LABEL[p.name] || p.name, p.installed, p.latest, p.update,
-          p.tiers.length ? select(`data-tier="${p.name}"`, p.tier, p.tiers) : "", `<button type="button" data-up="${p.name === "streamer" ? "streamer" : "parts"}">Update</button>`)).join("")}
+          p.tiers.length ? select(`data-tier="${p.name}"`, p.tier, p.tiers) : "", `<button type="button" data-up="${p.name === "streamer" ? "streamer" : "parts"}">Update</button>`, p.needs)).join("")}
       ${row("AI model", c.ai.installed || (c.ai.kind === "off" ? "off" : ""), c.ai.latest, c.ai.update,
-          select("data-ai", c.ai.kind, c.ai.kinds), `<button type="button" data-up="ai">Update</button>`)}
+          select("data-ai", c.ai.kind, c.ai.kinds), `<button type="button" data-up="ai">Update</button>`, c.ai.needs)}
       <div class="pb-sub-h">Printers</div><div class="pb-compprinters"><p class="pb-muted">Checking printers…</p></div>`;
     box.querySelector("[data-a=check]").onclick = () => load(box);
     box.querySelector("[data-a=all]")?.addEventListener("click", () => act(box, { update: c.core.update ? "core" : c.parts.some(p => p.update) ? "parts" : "ai" }, "Update Printer Buddy now? It restarts when done."));
