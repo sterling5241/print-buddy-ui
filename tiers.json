@@ -1,0 +1,4 @@
+{
+  "basic":    {"files": ["index.html", "share.html", "assets", "core", "panels", "styles", "vendor", "README.md", "README.txt"]},
+  "advanced": {"files": ["index.html", "share.html", "assets", "core", "panels", "styles", "vendor", "README.md", "README.txt"]}
+}
