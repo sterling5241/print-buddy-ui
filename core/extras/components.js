@@ -54,7 +54,7 @@ PB.components = (() => {
         const vi = (await rpc(p.id, "machine.update.status"))?.version_info || {};
         const rows = Object.entries(vi).filter(([n]) => n !== "system").map(([n, v]) => {
           const cur = v.version || "?", next = v.remote_version || "?";
-          const out = v.is_valid !== false && ((v.commits_behind?.length || 0) > 0 || (next !== "?" && cur !== next));
+          const out = v.is_valid !== false && ((v.commits_behind?.length || 0) > 0 || (next !== "?" && cur.replace(/^v/, "") !== next.replace(/^v/, "")));
           return row(n, cur, next, out, "", `<button type="button" data-pid="${p.id}" data-name="${esc(n)}">Update</button>`);
         });
         return `<div class="pb-lname">${esc(p.name)}</div>${rows.join("") || `<p class="pb-muted">No update manager on this printer.</p>`}`;
