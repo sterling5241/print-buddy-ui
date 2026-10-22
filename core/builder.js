@@ -157,7 +157,7 @@
           };
           rail.append(add);
         }
-        rail.prepend(fold);
+        rail.append(fold);
       }
       main.replaceChildren(...layout.tabs.map(tab => {
         const sec = el("section", "bd-tab"); sec.hidden = tab.id !== active;
