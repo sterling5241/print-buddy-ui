@@ -14,7 +14,7 @@ PB.panel("console", {
       <form class="pb-cin"><input autocomplete="off" spellcheck="false" aria-label="G-code command" placeholder="Send G-code… (↑ ↓ history)"><button>Send</button></form>`;
     const dl = PB.el("datalist"); dl.id = "pb-cmds-" + Math.random().toString(36).slice(2, 7); host.append(dl);
     const q = s => host.querySelector(s), logEl = q(".pb-log"), input = q("input");
-    input.setAttribute("list", dl.id);
+    input.oninput = () => { if (input.value.trim()) input.setAttribute("list", dl.id); else input.removeAttribute("list"); };
     logEl.style.height = `${cfg.height}px`;
     let filters = [], auto = true, hist = -1, help = {};
     async function commands(id) {
@@ -42,13 +42,15 @@ PB.panel("console", {
     const flt = PB.parts.consoleFilters(q, cfg, { get: () => filters, set: f => { filters = f; draw(); return f; } });
     const hlp = PB.parts.consoleHelp(q, input, () => help);
     input.onkeydown = e => {
-      if ((e.key !== "ArrowUp" && e.key !== "ArrowDown") || !conHistory.length) return;
+      if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
       e.preventDefault();
+      input.removeAttribute("list");
+      if (!conHistory.length) return;
       if (e.key === "ArrowUp") hist = hist === -1 ? conHistory.length - 1 : Math.max(0, hist - 1);
       else hist = hist === -1 ? -1 : hist + 1 >= conHistory.length ? -1 : hist + 1;
       input.value = hist === -1 ? "" : conHistory[hist];
     };
-    q("form").onsubmit = e => { e.preventDefault(); const v = input.value; input.value = ""; hist = -1; if (v.trim()) { auto = true; conSend(v); } };
+    q("form").onsubmit = e => { e.preventDefault(); const v = input.value; input.value = ""; input.removeAttribute("list"); hist = -1; if (v.trim()) { auto = true; conSend(v); } };
     return {
       async open(id) {
         filters = []; draw(); commands(id);
