@@ -57,7 +57,7 @@
   const panel = el("section", "panel pb-settings"); panel.hidden = true;
   panel.innerHTML = `<div class="pb-settop"><h2>Settings</h2><span class="bd-sp"></span><button type="button" data-a="close">Close</button></div>
     <div class="pb-settabs" role="tablist"><button type="button" data-tab="alerts">Alerts</button><button type="button" data-tab="ai" class="ai">AI</button>
-      <button type="button" data-tab="look">Look</button><button type="button" data-tab="about">About</button></div>
+      <button type="button" data-tab="look">Look</button><button type="button" data-tab="components">Components</button><button type="button" data-tab="about">About</button></div>
     <div data-body="alerts"></div><div data-body="ai"></div>
     <div data-body="look"><label class="field">Theme <select data-a="theme"><option value="auto">Auto (follow this device)</option><option value="light">Light</option><option value="dark">Dark</option></select></label>
       <label class="pb-chk pb-keysopt"><input type="checkbox" data-a="keys"> Keyboard shortcuts on printer pages (press <kbd>?</kbd> for the list)</label>
@@ -71,6 +71,7 @@
       <label class="pb-chk"><input type="checkbox" data-c="pb-lock" data-def=""> Lock sliders on touch screens (tap once to unlock, so scrolling can't change them)</label>
       <label class="pb-chk"><input type="checkbox" data-c="pb-title" data-def="1"> Show print progress in the browser tab title</label>
       <p class="pb-muted">These are saved in this browser. "Time left" is for everyone using this box.</p></div>
+    <div data-body="components"></div>
     <div data-body="about"><dl class="pb-kv pb-about"></dl></div>`;
   $(".top").after(panel);
   panel.querySelector("[data-body=alerts]").append($("#notifyPanel"));
@@ -97,6 +98,7 @@
       for (const c of panel.querySelectorAll("[data-c]")) c.checked = !!PB.store.get(c.dataset.c, !!c.dataset.def);
       api("/api/ui/eta").then(r => { eta.value = r.mode; }).catch(() => {});
     }
+    if (name === "components") PB.components?.load(panel.querySelector("[data-body=components]"));
     if (name === "about") {
       let v = {}; try { v = (await api("/api/config")).version || {}; } catch {}
       panel.querySelector(".pb-about").innerHTML = [["Version", v.commit || "?"], ["Branch", v.branch || "?"], ["Updated", v.date || "?"],
