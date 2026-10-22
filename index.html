@@ -1707,8 +1707,9 @@ async function loadConfig() {
     document.body.classList.toggle("notify-basic", SETUP.notify !== "advanced");
     document.body.classList.toggle("no-timelapse", SETUP.video !== "timelapse");
     document.body.classList.toggle("no-remote", SETUP.remote !== "on");
-    document.body.classList.toggle("no-ai", SETUP.ai !== "basic");
-    if (SETUP.ai === "basic") loadAI();
+    const aiOn = SETUP.ai === "basic" || SETUP.ai === "heavy";
+    document.body.classList.toggle("no-ai", !aiOn);
+    if (aiOn) loadAI();
     if (isBasic()) {
       $("#grid").classList.remove("list");
       if ($("#sortBy").value === "custom") { $("#sortBy").value = "status"; arrange(); }
