@@ -7,6 +7,7 @@ calibration.js - manual probe, bed screws, screws tilt
 pause-layer.js - pause at layer
 camera-editor.js - add / edit Moonraker cameras
 theme.js - theme copied from a printer's Fluidd / Mainsail (Settings > Look)
-components.js - Settings > Components: update Printer Buddy, its parts, the AI model and the printers
+components.js - updates for Printer Buddy, its parts, the AI model and the printers (home page ☰ drawer)
+system-drawer.js - ☰ drawers: printer restarts, power and services; Printer Buddy's services and host
 ui-options.js - confirmations, tab title, slider lock
 extras.css - their styles

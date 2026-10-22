@@ -25,38 +25,8 @@ PB.panel("machine", {
       } catch (e) { kv.innerHTML = `<div><dt>Couldn't read the host</dt><dd>${esc(e.message)}</dd></div>`; }
     }
     const svcs = host.querySelector(".pb-svcs");
-    async function services() {
-      if (pageId === null) return;
-      try {
-        const si = (await PB.rpc("machine.system_info"))?.system_info || {}, st = si.service_state || {};
-        const list = [...(si.available_services || [])].sort();
-        svcs.innerHTML = list.map(n => {
-          const s = st[n] || {}, on = s.active_state === "active";
-          return `<div class="pb-li"><div class="pb-lmain"><div class="pb-lname">${esc(n)}</div>
-              <div class="pb-lsub">${esc([s.active_state, s.sub_state].filter(Boolean).join(" · ") || "unknown")}</div></div>
-            <div class="pb-lbtn"><button type="button" data-svc="${esc(n)}" data-act="restart">Restart</button>
-              <button type="button" data-svc="${esc(n)}" data-act="${on ? "stop" : "start"}">${on ? "Stop" : "Start"}</button></div></div>`;
-        }).join("") || `<p class="pb-muted">Moonraker doesn't list any services.</p>`;
-        for (const b of svcs.querySelectorAll("[data-svc]")) b.onclick = async () => {
-          const { svc, act } = b.dataset;
-          if ((act !== "start" || busy) && !confirm(`${act[0].toUpperCase() + act.slice(1)} ${svc}?${busy ? " A print is running." : ""}`)) return;
-          try { await PB.rpc(`machine.services.${act}`, { service: svc }); toast(`${svc}: ${act} sent`); } catch (e) { toast(e.message); }
-          setTimeout(services, 2000);
-        };
-      } catch (e) { svcs.innerHTML = `<p class="pb-muted">${esc(e.message)}</p>`; }
-    }
-    const ACT = {
-      klipper: ["Restart Klipper?", "printer.restart"], firmware: ["Firmware restart (MCU reset)?", "printer.firmware_restart"],
-      moonraker: ["Restart Moonraker?", "machine.services.restart", { service: "moonraker" }],
-      reboot: ["Reboot the printer's computer? It goes offline for a minute.", "machine.reboot"],
-      shutdown: ["Shut down the printer's computer? You'll need to power it on by hand.", "machine.shutdown"],
-    };
-    for (const b of host.querySelectorAll("[data-r]")) b.onclick = async () => {
-      const [text, method, params] = ACT[b.dataset.r];
-      if (busy && !confirm("A print is running. Really?")) return;
-      if (!confirm(text)) return;
-      try { await PB.rpc(method, params); toast("Done"); } catch (e) { toast(e.message); }
-    };
+    const services = () => { if (pageId !== null) PB.services(svcs, () => busy, () => setTimeout(services, 2000)); };
+    for (const b of host.querySelectorAll("[data-r]")) b.onclick = () => PB.sysAction(b.dataset.r, busy);
     return {
       open() { for (const a of host.querySelectorAll("[data-log]")) a.href = PB.fileUrl("logs", a.dataset.log, true); },
       shown() { load(); services(); clearInterval(timer); timer = setInterval(load, 5000); },
