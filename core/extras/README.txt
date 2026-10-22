@@ -9,5 +9,6 @@ camera-editor.js - add / edit Moonraker cameras
 theme.js - theme copied from a printer's Fluidd / Mainsail (Settings > Look)
 components.js - updates for Printer Buddy, its parts, the AI model and the printers (home page ☰ drawer)
 system-drawer.js - ☰ drawers: printer restarts, power and services; Printer Buddy's services and host
+save-config.js - Save config button + pending changes after calibrations
 ui-options.js - confirmations, tab title, slider lock
 extras.css - their styles
