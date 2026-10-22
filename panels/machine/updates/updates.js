@@ -15,12 +15,19 @@ PB.panel("updates", {
         draw(await PB.rpc("machine.update.status"));
       } catch (e) { msg.textContent = e.message.includes("not found") ? "The update manager isn't set up in moonraker.conf." : e.message; list.innerHTML = ""; }
     }
+    function newer(a, b) {
+      const n = s => (String(s).replace(/^v/i, "").match(/\d+/g) || []).map(Number);
+      const x = n(a), y = n(b);
+      if (!x.length || !y.length) return String(a).replace(/^v/i, "") !== String(b).replace(/^v/i, "");
+      for (let i = 0; i < Math.max(x.length, y.length); i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0);
+      return false;
+    }
     function draw(st) {
       const vi = st?.version_info || {}, rows = [];
       for (const [name, v] of Object.entries(vi)) {
         if (name === "system") { rows.push({ name, label: "System packages", cur: "", next: v.package_count ? `${v.package_count} updates` : "", out: !!v.package_count }); continue; }
         const cur = v.version || v.full_version_string || "?", next = v.remote_version || "?";
-        const out = v.is_valid !== false && ((v.commits_behind?.length || 0) > 0 || (next !== "?" && cur !== next));
+        const out = v.is_valid !== false && ((v.commits_behind?.length || 0) > 0 || (next !== "?" && newer(next, cur)));
         rows.push({ name, label: name, cur, next: out ? next : "", out, bad: v.is_valid === false || v.is_dirty, info: v.is_dirty ? "local changes" : v.is_valid === false ? "invalid" : "" });
       }
       const n = rows.filter(r => r.out).length;
