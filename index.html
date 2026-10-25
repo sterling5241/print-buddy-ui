@@ -62,6 +62,7 @@
   .pg-ai .head .ctl2 { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
   .pg-ai .head button { min-height: 36px; padding: 0 12px; background: var(--track); font-weight: 700; }
   .ai-rows.idle { opacity: .45; }
+  .pg-ai .ai-chart { height: 150px; }
   .pg-ai .ask { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-weight: 700; color: var(--red-text); }
   .pg-ai .ask button { min-height: 36px; padding: 0 14px; font-weight: 900; }
   .pg-ai .ask .yes { background: var(--red); color: #fff; }
@@ -509,6 +510,7 @@
         <div class="head"><strong>AI watch</strong>
           <div class="ctl2">
             <button type="button" id="pgAiCheck" title="Score the camera once right now. Never alerts or pauses.">Check now</button>
+            <button type="button" id="pgAiHist" aria-pressed="false" title="Chart of the highest alert score across this print's checks">History</button>
             <button type="button" id="pgAiBoxAlways" aria-pressed="false" title="Draw the failure box on every check, even when the AI sees no failure (26 extra model runs each check)">Box: always</button>
             <button type="button" id="pgAiBoxFail" aria-pressed="true" title="Draw the failure box only at or above the alert threshold, so the extra model runs only happen when a failure is likely. With both box options off, the box is skipped completely, saving CPU on older Pis.">Box: on failure</button>
             <button type="button" id="pgAiArea" title="Drag over the camera picture to choose the part the AI watches (optional). Without one it watches the whole picture.">Detection area</button>
@@ -524,6 +526,7 @@
         <div class="ask" id="pgAiAsk" hidden><span id="pgAiAskText">Was it really a failure?</span>
           <button type="button" class="yes" id="pgAiYes">Yes</button><button type="button" id="pgAiNo">No, it's fine</button></div>
         <div class="ai-rows" id="pgAiRows"></div>
+        <div class="ai-chart" id="pgAiChart" hidden></div>
         <div class="note" id="pgAiNote"></div>
       </div>
       <div class="pg-btns">
@@ -1591,6 +1594,7 @@ function renderPageAI(p) {
   box.hidden = !a;
   drawAIBox(p);
   if (!a) return;
+  renderAIHist(p, a);
   if (document.activeElement !== $("#pgAiMode")) $("#pgAiMode").value = a.mode;
   const bm = a.box_mode || "failure";
   $("#pgAiBoxAlways").setAttribute("aria-pressed", String(bm === "always"));
@@ -1644,6 +1648,53 @@ function cycleAI(id) {
   setAIMode(id, order[(order.indexOf(cur) + 1) % order.length]);
 }
 $("#pgAiMode").onchange = e => setAIMode(pageId, e.target.value);
+const aiHist = { on: false, id: null, chart: null, data: [], lastAt: 0 };
+function renderAIHist(p, a) {
+  const btn = $("#pgAiHist"), box = $("#pgAiChart");
+  btn.hidden = !window.echarts;
+  if (aiHist.id !== p.id) { Object.assign(aiHist, { id: p.id, on: false, data: [], lastAt: 0 }); aiHist.chart?.clear(); }
+  btn.setAttribute("aria-pressed", String(aiHist.on));
+  box.hidden = !aiHist.on;
+  if (!aiHist.on) return;
+  if (a.at && aiHist.lastAt && a.at > aiHist.lastAt) {   // new check since the fetch
+    aiHist.data.push([a.at, a.score || 0, a.top || "", a.alerted_at && a.at - a.alerted_at < 2 ? 1 : 0]);
+    aiHist.lastAt = a.at;
+    drawAIHist();
+  }
+}
+function drawAIHist() {
+  const box = $("#pgAiChart"), d = aiHist.data;
+  if (!aiHist.chart) {
+    aiHist.chart = echarts.init(box, null, { renderer: "canvas" });
+    new ResizeObserver(() => aiHist.chart.resize()).observe(box);
+  }
+  aiHist.chart.setOption({
+    backgroundColor: "transparent", animation: false, textStyle: { color: "#8F8B99", fontFamily: "inherit", fontSize: 11 },
+    grid: { left: 40, right: 8, top: 10, bottom: 20 },
+    tooltip: { trigger: "axis", backgroundColor: "#232327", borderColor: "#2C2C31", textStyle: { color: "#E8E6EC" },
+               formatter: ps => { const e = d[ps[0]?.dataIndex]; return e ? `${fmtClock(new Date(e[0] * 1000))} — ${e[2] ? aiName(e[2]) : "highest"} ${Math.round(e[1] * 100)}%${e[3] ? " · alerted" : ""}` : ""; } },
+    xAxis: { type: "time", axisLine: { lineStyle: { color: "#2C2C31" } }, splitLine: { show: false },
+             axisLabel: { formatter: v => new Date(v).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) } },
+    yAxis: { type: "value", min: 0, max: 1, axisLabel: { formatter: v => Math.round(v * 100) + "%" }, splitLine: { lineStyle: { color: "#2C2C31" } } },
+    series: [{ type: "line", showSymbol: false, data: d.map(e => [e[0] * 1000, e[1]]),
+               lineStyle: { width: 2, color: "#8B5CF6" }, itemStyle: { color: "#8B5CF6" }, areaStyle: { color: "#8B5CF6", opacity: .12 },
+               markLine: { silent: true, symbol: "none", animation: false, data: [
+                 { yAxis: aiThr(), lineStyle: { color: "#FF8A1F", type: "dashed" }, label: { show: false } },
+                 ...d.filter(e => e[3]).map(e => ({ xAxis: e[0] * 1000, lineStyle: { color: "#E5484D" }, label: { show: false } }))] } }],
+  });
+}
+$("#pgAiHist").onclick = async () => {
+  aiHist.on = !aiHist.on;
+  renderPage();
+  if (!aiHist.on) return;
+  try {
+    const r = await api(`/api/printers/${pageId}/ai/history`);
+    aiHist.data = r.history || [];
+    aiHist.lastAt = aiHist.data.length ? aiHist.data[aiHist.data.length - 1][0] : (printers.get(pageId)?.ai?.at || 1);
+    drawAIHist();
+    aiHist.chart?.resize();
+  } catch (e) { toast(e.message); }
+};
 const aiTest = new Map();
 async function answerAlert(yes) {
   const p = printers.get(pageId), iid = p?.ai?.alert_item;
@@ -1746,7 +1797,7 @@ function fillAIForm() {
   f.ai_contribute.checked = !!aiCfg.ai_contribute;
   loadPhotos();
   $("#aiModel").textContent = m.loaded
-    ? `Model ${m.tag}. Alerts on: ${m.labels.filter(l => m.kinds[l] === "alert").map(aiName).join(", ")}. Warnings only: ${m.labels.filter(l => m.kinds[l] !== "alert").map(aiName).join(", ")}.`
+    ? `Model ${m.tag}${m.provider && m.provider !== "CPU" ? ` on ${m.provider}` : ""}. Alerts on: ${m.labels.filter(l => m.kinds[l] === "alert").map(aiName).join(", ")}. Warnings only: ${m.labels.filter(l => m.kinds[l] !== "alert").map(aiName).join(", ")}.`
     : (m.error || "No AI model loaded.");
 }
 $("#aiBtn").onclick = async () => {
